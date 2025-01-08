@@ -1,2 +1,2 @@
 # LayerAvatar
-Code coming soon
+Files for project page.
