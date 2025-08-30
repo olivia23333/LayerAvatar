@@ -19,7 +19,6 @@ __pycache__/
 /dist
 /premodel
 *.stl
-*.pth
 *.jpg
 # *.png
 /venv/

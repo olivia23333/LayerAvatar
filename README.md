@@ -137,8 +137,6 @@ Downloaded trained model from following link and put it to corresponding local p
 | Layeravatar-THUman | THUman2.0 dataset | [Link](https://drive.google.com/file/d/12G_Yp-GRitMF31fKYuIxkOynnNPuZUC6/view?usp=sharing) | work_dirs/layeravatar_uncond_thuman/ckpt | configs/layeravatar_uncond_16bit_thuman.py |
 | Layeravatar-Composite | THUman2.0, THUman2.1, CustomHuman | [Link](https://drive.google.com/file/d/12QrShr4UjNLnV1poKI-Z3JGAkmsNmIt0/view?usp=sharing) | work_dirs/layeravatar_uncond_composite/ckpt | configs/layeravatar_uncond_16bit_composite.py |
 
-Example `.pth` files can be download from [here](https://drive.google.com/file/d/1EXBueuArrSDpZ95lGd8TOztCYZ_cUSxA/view?usp=share_link) for `transfer` mode.
-
 If you are using RTX 3090 for testing, please set `samples_per_gpu=4` and `workers_per_gpu=2` in config file to 1 to avoid CUDA OUT OF MEMORY problem.
 
 ```bash
@@ -254,6 +252,7 @@ data
 ### Training scripts
 
 Run the following command to train a model:
+
 To avoid CUDA OUT OF MEMORY problem, uncomment line 977, 978 and comment 979, 980 in `LayerAvatar/lib/models/autodecoders/base_nerf.py`
 
 ```bash
