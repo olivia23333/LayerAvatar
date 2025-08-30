@@ -71,7 +71,7 @@ conda install --use-local pytorch3d-0.7.2-py38_cu117_pyt1130.tar.bz2
 ```bash
 bash scripts/fetch_template.sh 
 ```
-Then download components' templates from [Google Drive](https://drive.google.com/file/d/1o-D_Dc2CBI1VqhOFXd--U8kLcXOH1Oc1/view?usp=sharing) and put them under `work_dirs/cache/template` folder.
+**Then download components' templates from [Google Drive](https://drive.google.com/file/d/1o-D_Dc2CBI1VqhOFXd--U8kLcXOH1Oc1/view?usp=sharing) and put them under `work_dirs/cache/template` folder.**
 
 After downloading, the structure should look like this:
 ```
@@ -134,8 +134,8 @@ python combine_template.py
 Downloaded trained model from following link and put it to corresponding local path for testing.
 | Model | Training Data | Download Link | Local Path | Config |
 | :--- | :--- | :--- | :--- | :--- |
-| Layeravatar-THUman | THUman2.0 dataset | [Link](https://drive.google.com/file/d/12G_Yp-GRitMF31fKYuIxkOynnNPuZUC6/view?usp=sharing) | work_dirs/layeravatar_uncond_thuman/ckpt | 
-| Layeravatar-Composite | THUman2.0, THUman2.1, CustomHuman | [Link](https://drive.google.com/file/d/12QrShr4UjNLnV1poKI-Z3JGAkmsNmIt0/view?usp=sharing) | work_dirs/layeravatar_uncond_composite/ckpt |
+| Layeravatar-THUman | THUman2.0 dataset | [Link](https://drive.google.com/file/d/12G_Yp-GRitMF31fKYuIxkOynnNPuZUC6/view?usp=sharing) | work_dirs/layeravatar_uncond_thuman/ckpt | configs/layeravatar_uncond_16bit_thuman.py |
+| Layeravatar-Composite | THUman2.0, THUman2.1, CustomHuman | [Link](https://drive.google.com/file/d/12QrShr4UjNLnV1poKI-Z3JGAkmsNmIt0/view?usp=sharing) | work_dirs/layeravatar_uncond_composite/ckpt | configs/layeravatar_uncond_16bit_composite.py |
 
 Example `.pth` files can be download from [here](https://drive.google.com/file/d/1EXBueuArrSDpZ95lGd8TOztCYZ_cUSxA/view?usp=share_link) for `transfer` mode.
 
