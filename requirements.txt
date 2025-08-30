@@ -14,3 +14,4 @@ tqdm
 trimesh==3.16.2
 tensorboard
 videoio
+yapf==0.40.1

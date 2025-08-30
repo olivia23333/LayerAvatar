@@ -101,14 +101,12 @@ def compute_tbn(v0, v1, v2, vt0, vt1, vt2):
         v01[:, :, :, 0] * vt02[None, :, :, 1] - v02[:, :, :, 0] * vt01[None, :, :, 1],
         v01[:, :, :, 1] * vt02[None, :, :, 1] - v02[:, :, :, 1] * vt01[None, :, :, 1],
         v01[:, :, :, 2] * vt02[None, :, :, 1] - v02[:, :, :, 2] * vt01[None, :, :, 1]], dim=-1)
-    # print(tangent[0, 0, 0])
-    # assert False
+
     tangent = F.normalize(tangent, dim=-1)
     normal = torch.cross(v01, v02, dim=3)
     normal = F.normalize(normal, dim=-1)
-    # the original code might have bug, try the new line below
-    # bitangent = torch.cross(tangent, normal, dim=3) # I guess normal, tangent would be right
-    bitangent = torch.cross(normal, tangent, dim=3) # I guess normal, tangent would be right
+
+    bitangent = torch.cross(normal, tangent, dim=3) 
     bitangent = F.normalize(bitangent, dim=-1)
 
     # create matrix
@@ -153,39 +151,45 @@ def get_vert_connectivity(num_vertices, faces):
 
 
 if __name__ == '__main__':
+    objpaths = [
+        "../../../work_dirs/cache/template/dense_body.obj",
+        "../../../work_dirs/cache/template/dense_hair_shoes.obj",
+        "../../../work_dirs/cache/template/dense_up_and_low.obj"
+    ]
     # layer 0
-    # objpath = "/home/zhangweitian/HighResAvatar/work_dirs/cache/template/dense_body.obj"
+    # objpath = "work_dirs/cache/template/dense_body.obj"
     # layer 1
-    # objpath = "/home/zhangweitian/HighResAvatar/work_dirs/cache/template/dense_hair_shoes.obj"
+    # objpath = "work_dirs/cache/template/dense_hair_shoes.obj"
     # layer 2
-    objpath = "/home/zhangweitian/HighResAvatar/work_dirs/cache/template/dense_up_and_low.obj"
-    v, vt, vi, vti = load_obj(objpath)
-    v = np.array(v, dtype=np.float32)
-    vt = np.array(vt, dtype=np.float32)
-    vi = np.array(vi, dtype=np.int32) # np.int_ means long
-    vti = np.array(vti, dtype=np.int32)
+    # objpath = "work_dirs/cache/template/dense_up_and_low.obj"
+    for num_layer, objpath in enumerate(objpaths):
+        v, vt, vi, vti = load_obj(objpath)
+        v = np.array(v, dtype=np.float32)
+        vt = np.array(vt, dtype=np.float32)
+        vi = np.array(vi, dtype=np.int32) # np.int_ means long
+        vti = np.array(vti, dtype=np.int32)
     
-    vt = torch.as_tensor(vt)
+        vt = torch.as_tensor(vt)
 
-    v = torch.as_tensor(v).unsqueeze(0)
-    vi = torch.tensor(vi).long()
-    vti = torch.tensor(vti).long()
+        v = torch.as_tensor(v).unsqueeze(0)
+        vi = torch.tensor(vi).long()
+        vti = torch.tensor(vti).long()
 
-    v0 = v[:, vi[:, 0], :].unsqueeze(2)
-    v1 = v[:, vi[:, 1], :].unsqueeze(2)
-    v2 = v[:, vi[:, 2], :].unsqueeze(2)
+        v0 = v[:, vi[:, 0], :].unsqueeze(2)
+        v1 = v[:, vi[:, 1], :].unsqueeze(2)
+        v2 = v[:, vi[:, 2], :].unsqueeze(2)
 
-    vt0 = vt[vti[:, 0], :].unsqueeze(1)
-    vt1 = vt[vti[:, 1], :].unsqueeze(1)
-    vt2 = vt[vti[:, 2], :].unsqueeze(1)
+        vt0 = vt[vti[:, 0], :].unsqueeze(1)
+        vt1 = vt[vti[:, 1], :].unsqueeze(1)
+        vt2 = vt[vti[:, 2], :].unsqueeze(1)
 
-    primrotmesh = compute_tbn(v0, v1, v2, vt0, vt1, vt2).view(v0.size(0), -1, 3, 3)
+        primrotmesh = compute_tbn(v0, v1, v2, vt0, vt1, vt2).view(v0.size(0), -1, 3, 3)
 
-    final_uv = ((vt0+vt1+vt2) / 3).view(v0.size(0), -1, 2)
-    final_pos = ((v0+v1+v2) / 3).view(v0.size(0), -1, 3)
-    final_rot = primrotmesh
+        final_uv = ((vt0+vt1+vt2) / 3).view(v0.size(0), -1, 2)
+        final_pos = ((v0+v1+v2) / 3).view(v0.size(0), -1, 3)
+        final_rot = primrotmesh
     
-    np.save('../../../work_dirs/cache/init_faces_smplx_l2.npy', vi.numpy())
-    np.save('../../../work_dirs/cache/init_uv_smplx_l2.npy', final_uv[0].numpy())
-    np.save('../../../work_dirs/cache/init_pcd_smplx_l2.npy', final_pos[0].numpy())
-    np.save('../../../work_dirs/cache/init_rot_smplx_l2.npy', final_rot[0].numpy())
+        np.save(f'../../../work_dirs/cache/init_faces_smplx_l{num_layer}.npy', vi.numpy())
+        np.save(f'../../../work_dirs/cache/init_uv_smplx_l{num_layer}.npy', final_uv[0].numpy())
+        np.save(f'../../../work_dirs/cache/init_pcd_smplx_l{num_layer}.npy', final_pos[0].numpy())
+        np.save(f'../../../work_dirs/cache/init_rot_smplx_l{num_layer}.npy', final_rot[0].numpy())

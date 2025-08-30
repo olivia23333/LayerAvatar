@@ -1,11 +1,9 @@
-from diff_Gauss import GaussianRasterizationSettings, GaussianRasterizer
+from diff_gaussian_rasterization import GaussianRasterizationSettings, GaussianRasterizer
 import torch
 import torch.nn as nn
 import math
 import cv2
 import numpy as np
-# from roma import rotmat_to_unitquat, quat_xyzw_to_wxyz
-# from pytorch3d.transforms import matrix_to_quaternion, quaternion_to_matrix
 
 def batch_rodrigues(rot_vecs, epsilon = 1e-8):
     ''' Calculates the rotation matrices for a batch of rotation vectors
@@ -43,9 +41,6 @@ def batch_rodrigues(rot_vecs, epsilon = 1e-8):
 def build_scaling_rotation(s, r, tfs):
     L = torch.zeros((s.shape[0], 3, 3), dtype=torch.float, device=s.device)
     R = build_rotation(r)
-    # tfs_rot = tfs[0,:,:3,:3]
-    # tfs_rot = torch.eye(3, device=s.device).unsqueeze(0).repeat(s.shape[0], 1, 1)
-    # R_ = tfs_rot @ R
     R_ = R
 
     L[:,0,0] = s[:,0]
@@ -184,8 +179,6 @@ class GFRenderer(nn.Module):
         raster_settings_bg = GaussianRasterizationSettings(
             image_height=self.image_size,
             image_width=self.image_size,
-            # image_height=self.h,
-            # image_width=self.w,
             tanfovx=self.tanfov,
             tanfovy=self.tanfov,
             bg=self.bg * 0,
@@ -251,43 +244,7 @@ class GFRenderer(nn.Module):
         
         if cov3D_precomp != None:
             seg_color = (self.part_label.float() * 0.2).unsqueeze(-1).expand(-1, 3)
-            # multi_layer
-            # seg_color = torch.cat([seg_color, seg_color[-22152:]])
-            # p_hom = torch.cat([means3D, torch.ones_like(means3D[...,:1])], -1).unsqueeze(-1)
-            # p_view = torch.matmul(self.w2c[0].transpose(0,1), p_hom)
-            # p_view = p_view[...,:3,:]
-            # depth = p_view.squeeze()[...,2:3].repeat(1,3)
-            # print(depth.min())
-            # print(depth.max())
-            # assert False
-            # full_mask = label.sum(-1).bool()
-            # full_mask = (full_mask * (opacities>0.005)[:, 0]).detach()
-            # cloth_mask = label[:, 1].bool()
-            # hair_mask = label[:, 2].bool()
-            # label_all = label.clone()
-            # label_all[body_mask] = 1 * 70 / 255
-            # label_all[cloth_mask] = 2 * 70 / 255
-            # label_all[hair_mask] = 3 * 70 / 255
-            # opacity_mask = (opacities > 0.1)[:, 0]
-            # hair_mask = hair_mask * opacity_mask
-            # image_, _, _, _ = self.rasterizer(means3D=means3D[full_mask], colors_precomp=colors_precomp[full_mask], \
-            #     opacities=opacities[full_mask], means2D=screenspace_points[full_mask], cov3D_precomp=cov3D_precomp[full_mask])
-            # seg_, _, _, _ = self.rasterizer_bg(means3D=means3D[full_mask], colors_precomp=label_all[full_mask], \
-            #     opacities=opacities[full_mask], means2D=screenspace_points[full_mask], cov3D_precomp=cov3D_precomp[full_mask])
-            # image_body, _, _, alpha_body = self.rasterizer(means3D=means3D[body_mask], colors_precomp=colors_precomp[body_mask], \
-            #     opacities=opacities[body_mask], means2D=screenspace_points[body_mask], cov3D_precomp=cov3D_precomp[body_mask])
-            # image_cloth, _, _, alpha_cloth = self.rasterizer(means3D=means3D[cloth_mask], colors_precomp=colors_precomp[cloth_mask], \
-            #     opacities=opacities[cloth_mask], means2D=screenspace_points[cloth_mask], cov3D_precomp=cov3D_precomp[cloth_mask])
-            # image_hair, _, _, alpha_hair = self.rasterizer(means3D=means3D[hair_mask], colors_precomp=colors_precomp[hair_mask], \
-            #     opacities=opacities[hair_mask], means2D=screenspace_points[hair_mask], cov3D_precomp=cov3D_precomp[hair_mask])
             body_mask, up_mask, hair_mask, shoes_mask, low_mask = self.part_mask.clone().chunk(5)
-            # multi_layer mask
-            # device = body_mask.device
-            # body_mask = torch.cat([body_mask, torch.zeros(22152).to(device).bool()])
-            # up_mask = torch.cat([up_mask, torch.ones(22152).to(device).bool()])
-            # hair_mask = torch.cat([hair_mask, torch.zeros(22152).to(device).bool()])
-            # shoes_mask = torch.cat([shoes_mask, torch.zeros(22152).to(device).bool()])
-            # low_mask = torch.cat([low_mask, torch.zeros(22152).to(device).bool()])
 
             opacity_mask = (opacities.clone()>0.05)[..., 0].detach()
             body_mask *= opacity_mask
@@ -295,17 +252,9 @@ class GFRenderer(nn.Module):
             hair_mask *= opacity_mask
             shoes_mask *= opacity_mask
             low_mask *= opacity_mask
-            # component_mask = up_mask + shoes_mask
-            # component_mask *= opacity_mask
 
             image_, _, _, alpha = self.rasterizer(means3D=means3D[opacity_mask], colors_precomp=colors_precomp[opacity_mask], \
                 opacities=opacities[opacity_mask], means2D=screenspace_points[opacity_mask], cov3D_precomp=cov3D_precomp[opacity_mask])
-            # image_, _, _, alpha = self.rasterizer(means3D=means3D[opacity_mask], colors_precomp=colors_precomp[opacity_mask], \
-            #     opacities=opacities[opacity_mask], means2D=screenspace_points[opacity_mask], cov3D_precomp=cov3D_precomp[opacity_mask])
-            # image_, _, _, alpha = self.rasterizer(means3D=means3D[component_mask], colors_precomp=colors_precomp[component_mask], \
-            #     opacities=opacities[component_mask], means2D=screenspace_points[component_mask], cov3D_precomp=cov3D_precomp[component_mask])
-            # depth_
-            # multi_layer
             seg_, _, _, _ = self.rasterizer_bg(means3D=means3D[opacity_mask], colors_precomp=seg_color[opacity_mask], \
                 opacities=opacities[opacity_mask], means2D=screenspace_points[opacity_mask], cov3D_precomp=cov3D_precomp[opacity_mask])
             image_body, _, _, alpha_body = self.rasterizer(means3D=means3D[body_mask], colors_precomp=colors_precomp[body_mask], \
@@ -314,84 +263,14 @@ class GFRenderer(nn.Module):
                 opacities=opacities[body_mask].detach()*0+1, means2D=screenspace_points[body_mask], cov3D_precomp=cov3D_precomp[body_mask])
             image_cloth, _, _, alpha_cloth = self.rasterizer(means3D=means3D[up_mask], colors_precomp=colors_precomp[up_mask], \
                 opacities=opacities[up_mask], means2D=screenspace_points[up_mask], cov3D_precomp=cov3D_precomp[up_mask])
-            # image_l1, _, _, alpha_l1 = self.rasterizer(means3D=torch.cat([means3D[hair_mask], means3D[shoes_mask]], dim=0), colors_precomp=torch.cat([colors_precomp[hair_mask],colors_precomp[shoes_mask]], dim=0), \
-            #     opacities=torch.cat([opacities[hair_mask], opacities[shoes_mask]], dim=0), means2D=torch.cat([screenspace_points[hair_mask], screenspace_points[shoes_mask]], dim=0), cov3D_precomp=torch.cat([cov3D_precomp[hair_mask], cov3D_precomp[shoes_mask]], dim=0))
             image_hair, _, _, alpha_hair = self.rasterizer(means3D=means3D[hair_mask], colors_precomp=colors_precomp[hair_mask], \
                 opacities=opacities[hair_mask], means2D=screenspace_points[hair_mask], cov3D_precomp=cov3D_precomp[hair_mask])
             image_shoes, _, _, alpha_shoes = self.rasterizer(means3D=means3D[shoes_mask], colors_precomp=colors_precomp[shoes_mask], \
                 opacities=opacities[shoes_mask], means2D=screenspace_points[shoes_mask], cov3D_precomp=cov3D_precomp[shoes_mask])
             image_low, _, _, alpha_low = self.rasterizer(means3D=means3D[low_mask], colors_precomp=colors_precomp[low_mask], \
                 opacities=opacities[low_mask], means2D=screenspace_points[low_mask], cov3D_precomp=cov3D_precomp[low_mask])
-            # image_dress, _, _, alpha_dress = self.rasterizer(means3D=torch.cat([means3D[up_mask], means3D[low_mask]], dim=0), colors_precomp=torch.cat([colors_precomp[up_mask],colors_precomp[low_mask]], dim=0), \
-            #     opacities=torch.cat([opacities[up_mask], opacities[low_mask]], dim=0), means2D=torch.cat([screenspace_points[up_mask], screenspace_points[low_mask]], dim=0), cov3D_precomp=torch.cat([cov3D_precomp[up_mask], cov3D_precomp[low_mask]], dim=0))
-            # normal_body = (self.depth_to_normal(image_body[:1]) * 0.5) + 0.5 # [-1, 1]
-            # normal_body = normal_body * alpha_body.permute(1, 2, 0) + self.bg.reshape(1, 1, 3) * (1-alpha_body.permute(1, 2, 0))
-            # depth_all = torch.cat([depth_body, depth_cloth, depth_hair, depth_shoes, depth_low])
-            # cv2.imwrite('/mnt/sdb/zwt/LayerAvatar/debug/image_body.png', (image_body.permute(1, 2, 0).detach().cpu().numpy()*255).astype(np.uint8))
-            # cv2.imwrite('/home/zhangweitian/HighResAvatar/debug/seg_.png', (seg_.permute(1, 2, 0).detach().cpu().numpy()*255).astype(np.uint8))
-            # cv2.imwrite('/mnt/sdb/zwt/LayerAvatar/debug/normal_body.png', ((normal_body).detach().cpu().numpy()*255).astype(np.uint8))
-            # assert False
-            # seg = torch.cat([alpha, seg_, alpha_body, alpha_cloth, alpha_hair, alpha_shoes, alpha_low], dim=0)
             seg = torch.cat([alpha_inner, seg_, alpha_body, alpha_cloth, alpha_hair, alpha_shoes, alpha_low], dim=0)
             image = torch.cat([image_, image_body, image_cloth, image_hair, image_shoes, image_low], dim=0)
-            # image = image_
-            # seg = alpha
-            # image = image_cloth
-            # seg = alpha_cloth
-            # image = torch.cat([image_, image_body, image_cloth, image_low, image_l1], dim=0)
-            # seg = torch.cat([alpha, seg_, alpha_body, alpha_cloth, alpha_low, alpha_l1], dim=0)
-            # depth = torch.cat([depth_, depth_body[:1], depth_cloth[:1], depth_hair[:1], depth_shoes[:1], depth_low[:1]], dim=0)
         else:
             assert False
-            # print(is_rotation_matrix(rotations[0]))
-            # assert False
-            # rotations = quat_xyzw_to_wxyz(rotmat_to_unitquat(rotations)) 
-            # quaternion = matrix_to_quaternion(rotations)
-            # mat = quaternion_to_matrix(quaternion)
-            # print(rotations.shape)
-            # print(mat.shape)
-            # print(rotations[:2])
-            # print(mat[:2])
-            # assert False
-            # print(rotations.shape)
-            # assert False
-            full_mask = label.sum(-1).bool()
-            # full_mask = (full_mask * (opacities>0.005)[:, 0]).detach()
-            body_mask = label[:, 0].bool()
-            cloth_mask = label[:, 1].bool()
-            hair_mask = label[:, 2].bool()
-            label_all = label.clone()
-            label_all[body_mask] = 1 * 70 / 255
-            label_all[cloth_mask] = 2 * 70 / 255
-            label_all[hair_mask] = 3 * 70 / 255
-            # opacity_mask = (opacities > 0.1)[:, 0]
-            # hair_mask = hair_mask * opacity_mask
-            image_, _, _, _ = self.rasterizer(means3D=means3D[full_mask], colors_precomp=colors_precomp[full_mask], \
-                opacities=opacities[full_mask], means2D=screenspace_points[full_mask], scales=scales[full_mask], rotations=rotations[full_mask])
-            seg_, _, _, _ = self.rasterizer_bg(means3D=means3D[full_mask], colors_precomp=label_all[full_mask], \
-                opacities=opacities[full_mask], means2D=screenspace_points[full_mask], scales=scales[full_mask], rotations=rotations[full_mask])
-            image_body, _, _, alpha_body = self.rasterizer(means3D=means3D[body_mask], colors_precomp=colors_precomp[body_mask], \
-                opacities=opacities[body_mask], means2D=screenspace_points[body_mask], scales=scales[body_mask], rotations=rotations[body_mask])
-            image_cloth, _, _, alpha_cloth = self.rasterizer(means3D=means3D[cloth_mask], colors_precomp=colors_precomp[cloth_mask], \
-                opacities=opacities[cloth_mask], means2D=screenspace_points[cloth_mask], scales=scales[cloth_mask], rotations=rotations[cloth_mask])
-            image_hair, _, _, alpha_hair = self.rasterizer(means3D=means3D[hair_mask], colors_precomp=colors_precomp[hair_mask], \
-                opacities=opacities[hair_mask], means2D=screenspace_points[hair_mask], scales=scales[hair_mask], rotations=rotations[hair_mask])
-            seg = torch.cat([seg_, alpha_cloth, alpha_body, alpha_hair], dim=0)
-            image = torch.cat([image_, image_cloth, image_body, image_hair], dim=0)
-            # depth_index = torch.argsort(torch.stack([depth_hair, depth_cloth, depth_body]), dim=0)
-            # composite_image = torch.stack([image_hair, image_cloth, image_body])
-            # composite_alpha = torch.stack([alpha_hair, alpha_cloth, alpha_body])
-            # composite_seg = torch.stack([alpha_hair*self.label_value[2], alpha_cloth*self.label_value[1], alpha_body*self.label_value[0]])
-            # composite_all = torch.gather(torch.cat([composite_image, composite_seg, composite_alpha], dim=1), 0, depth_index.expand(-1, 5, -1, -1))
-            # composite_attr, compo_alpha = composite_all.split([4, 1], dim=1)
-            # alphas_shifted = torch.cat([torch.ones_like(compo_alpha[:1]), 1-compo_alpha], 0)
-            # weights = compo_alpha * torch.cumprod(alphas_shifted, dim=0)[:-1]
-            # image_seg = torch.sum(composite_attr * weights, dim=0)
-            # seg = torch.cat([image_seg[3:], alpha_cloth, alpha_body, alpha_hair], dim=0)
-            # image = torch.cat([image_seg[:3], image_cloth, image_body, image_hair], dim=0)
-            # image, _ = self.rasterizer(means3D=means3D, colors_precomp=colors_precomp, \
-            #     rotations=torch.nn.functional.normalize(rotations), opacities=opacities, scales=scales, \
-            #     means2D=screenspace_points)
-        
-        # return  torch.cat([image, seg], dim=0)
         return  image, seg

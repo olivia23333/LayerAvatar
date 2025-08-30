@@ -1,4 +1,4 @@
-name = 'ssdnerf_avatar_uncond_16bit_composite_thu'
+name = 'layeravatar_uncond_thuman'
 
 model = dict(
     type='DiffusionNeRF',
@@ -79,10 +79,8 @@ model = dict(
 
 save_interval = 5000
 eval_interval = 5000
-code_dir = '/mnt/sdb/zwt/LayerAvatar/cache/' + name + '/code'
-work_dir = '/mnt/sdb/zwt/LayerAvatar/work_dirs/' + name
-# code_dir = '/home/zhangweitian/HighResAvatar/cache/' + name + '/code'
-# work_dir = '/home/zhangweitian/HighResAvatar/work_dirs/' + name
+code_dir = 'cache/' + name + '/code'
+work_dir = 'work_dirs/' + name
 
 train_cfg = dict(
     dt_gamma_scale=0.5,
@@ -91,7 +89,6 @@ train_cfg = dict(
     n_inverse_rays=2 ** 12,
     n_decoder_rays=2 ** 12,
     loss_coef=0.1 / (1024 * 1024),
-    # optimizer=dict(type='Adam', lr=0.04, weight_decay=0.),
     optimizer=dict(type='Adam', lr=0.04, weight_decay=0.),
     cache_load_from=code_dir,
     viz_dir=None,
@@ -130,10 +127,10 @@ data = dict(
         cache_path='data/humanscan_thuman/human_train_cache.pkl'),
     val_cond=dict(
         type=dataset_type,
-        data_prefix='data/humanscan_composite/human_test',
+        data_prefix='data/humanscan_composite/human_novel',
         specific_observation_idcs=[0],
         img_res=1024,
-        cache_path='data/humanscan_composite/human_test_cache.pkl'),
+        cache_path='data/humanscan_composite/human_novel_cache.pkl'),
     train_dataloader=dict(split_data=True))
 lr_config = dict(
     policy='step',
@@ -150,7 +147,7 @@ evaluation = [
         data='val_uncond',
         interval=eval_interval,
         feed_batch_size=32,
-        viz_step=1,
+        viz_step=32,
         metrics=dict(
             type='FIDKID',
             num_images=487 * 54,
@@ -159,7 +156,7 @@ evaluation = [
                 type='StyleGAN',
                 inception_path='work_dirs/cache/inception-2015-12-05.pt'),
             bgr2rgb=False),
-        viz_dir=work_dir + '/viz_ani_demo',
+        viz_dir=work_dir + '/viz_uncond',
         save_best_ckpt=False)]
 
 total_iters = 200000
@@ -196,7 +193,6 @@ custom_hooks = [
                'train_cfg.offset_weight': 1,
                'pixel_loss_weight': 10.0,
                'seg_loss_weight':10.0,
-            #    'scale_loss_weight':0.5,
                'inner_loss_weight':2.5,
                'skin_loss_weight':0.25,
                'opacity_loss_weight':0.25,
@@ -207,7 +203,6 @@ custom_hooks = [
                'train_cfg.offset_weight': 0.5,
                'pixel_loss_weight': 5.0,
                'seg_loss_weight':5.0,
-            #    'scale_loss_weight':0.25,
                'inner_loss_weight':1.25,
                'skin_loss_weight':0.125,
                'opacity_loss_weight':0.05,

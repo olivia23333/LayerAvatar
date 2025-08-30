@@ -68,6 +68,12 @@ def parse_args():
         type=str,
         nargs='+')
     parser.add_argument(
+        '--num_scenes',
+        type=int,
+        nargs='+',
+        default=100,
+        help='number of scenes to generate')
+    parser.add_argument(
         '--cfg-options',
         nargs='+',
         action=DictAction,
@@ -195,50 +201,14 @@ def main():
             if eval_cfg.data not in args.data:
                 continue
 
-        # metrics = eval_cfg['metrics']
-        # if isinstance(metrics, dict):
-        #     metrics = [metrics]
-        # metrics = [build_metric(metric) for metric in metrics]
-        # for metric in metrics:
-        #     metric.prepare()
-
-        # check metrics for dist evaluation
-        # if distributed and metrics:
-        #     for metric in metrics:
-        #         assert metric.name in _distributed_metrics, (
-        #             f'We only support {_distributed_metrics} for multi gpu '
-        #             f'evaluation, but receive {args.eval}.')
-
-        # build the dataloader
-        dataset = build_dataset(cfg.data[eval_cfg.data])
-
-        # The default loader config
-        loader_cfg = dict(
-            samples_per_gpu=cfg.data.samples_per_gpu,
-            workers_per_gpu=cfg.data.get('val_workers_per_gpu',
-                                         cfg.data.workers_per_gpu),
-            num_gpus=len(cfg.gpu_ids),
-            dist=distributed,
-            shuffle=False)
-        # The overall dataloader settings
-        loader_cfg.update({
-            k: v
-            for k, v in cfg.data.items() if k not in [
-                'train', 'val', 'test', 'train_dataloader', 'val_dataloader',
-                'test_dataloader', 'val_uncond', 'val_cond'
-            ]
-        })
-
-        # specific config for test loader
-        test_loader_cfg = {**loader_cfg, **cfg.data.get('test_dataloader', {})}
-
-        data_loader = build_dataloader(dataset, **test_loader_cfg)
+        max_num_scenes=args.num_scenes[0]
 
         log_vars = viz_3d(
-            model, data_loader, metrics=None,
+            model, batch_size=cfg.data.samples_per_gpu, max_num_scenes=max_num_scenes, metrics=None,
             feed_batch_size=eval_cfg.get('feed_batch_size', 32),
-            viz_dir=eval_cfg.get('viz_dir', None),
-            viz_step=eval_cfg.get('viz_step', 1),
+            viz_dir=eval_cfg.get('viz_dir', 'viz_uncond') + '_viz',
+            # viz_step=eval_cfg.get('viz_step', 1),
+            viz_step=1,
             sample_kwargs=eval_cfg.get('sample_kwargs', dict()))
 
         # if rank == 0:

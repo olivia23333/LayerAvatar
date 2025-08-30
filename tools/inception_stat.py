@@ -91,12 +91,8 @@ if __name__ == '__main__':
 
         for scene in data_loader:
             all_imgs = scene['test_imgs'].squeeze(0).permute(0, 3, 1, 2) * 2 - 1
-            all_imgs = all_imgs[:, :3]
-            # print(all_imgs[0].permute(1, 2, 0)[0, 0])
-            # cv2.imwrite('/home/zhangweitian/HighResAvatar/debug/gt1.png', (all_imgs[0].permute(1, 2, 0).detach().cpu().numpy()*255).astype(np.uint8))
-            # assert False
             # only collect 18 images for test eval
-            # all_imgs = all_imgs[1::3]
+            # all_imgs = all_imgs[:, :3]
             img_batches = all_imgs.split(args.batch_size, dim=0)
             for img in img_batches:
                 # the inception network is not wrapped with module wrapper.

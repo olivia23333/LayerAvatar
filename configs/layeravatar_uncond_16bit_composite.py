@@ -1,4 +1,4 @@
-name = 'ssdnerf_avatar_uncond_16bit_composite_new_wobug'
+name = 'layeravatar_uncond_composite'
 
 model = dict(
     type='DiffusionNeRF',
@@ -79,10 +79,8 @@ model = dict(
 
 save_interval = 5000
 eval_interval = 5000
-code_dir = '/mnt/sdb/zwt/LayerAvatar/cache/' + name + '/code'
-work_dir = '/mnt/sdb/zwt/LayerAvatar/work_dirs/' + name
-# code_dir = '/home/zhangweitian/HighResAvatar/cache/' + name + '/code'
-# work_dir = '/home/zhangweitian/HighResAvatar/work_dirs/' + name
+code_dir = 'cache/' + name + '/code'
+work_dir = 'work_dirs/' + name
 
 train_cfg = dict(
     dt_gamma_scale=0.5,
@@ -91,7 +89,6 @@ train_cfg = dict(
     n_inverse_rays=2 ** 12,
     n_decoder_rays=2 ** 12,
     loss_coef=0.1 / (1024 * 1024),
-    # optimizer=dict(type='Adam', lr=0.04, weight_decay=0.),
     optimizer=dict(type='Adam', lr=0.04, weight_decay=0.),
     cache_load_from=code_dir,
     viz_dir=None,
@@ -122,8 +119,9 @@ optimizer = dict(
     decoder=dict(type='Adam', lr=1e-3, weight_decay=0.))
 dataset_type = 'PartDataset'
 data = dict(
-    samples_per_gpu=1,
-    workers_per_gpu=1,
+    # due to cuda memory limit, you can set samples_per_gpu=1, workers_per_gpu=1 during testing
+    samples_per_gpu=4,
+    workers_per_gpu=2,
     train=dict(
         type=dataset_type,
         data_prefix='data/humanscan_composite/human_train',
@@ -132,24 +130,20 @@ data = dict(
         img_res=1024),
     val_uncond=dict(
         type=dataset_type,
-        # data_prefix='data/humanscan_composite/human_train',
-        data_prefix='data/humanscan_composite/human_recon_noise3',
-        # data_prefix='data/humanscan_composite/human_sv_recon',
+        data_prefix='data/humanscan_composite/human_train',
         load_imgs=False,
         num_test_imgs=54,
         # num_test_imgs=1,
         scene_id_as_name=True,
         img_res=1024,
-        # cache_path='data/humanscan_composite/human_train_cache.pkl',
-        cache_path='data/humanscan_composite/human_reconnoise3_cache.pkl',
-        # cache_path='data/humanscan_composite/human_svrecon_cache.pkl'
+        cache_path='data/humanscan_composite/human_train_cache.pkl',
         ),
     val_cond=dict(
         type=dataset_type,
-        data_prefix='data/humanscan_composite/human_sv_recon',
+        data_prefix='data/humanscan_composite/human_novel',
         specific_observation_idcs=[0],
         img_res=1024,
-        cache_path='data/humanscan_composite/human_svrecon_cache.pkl'),
+        cache_path='data/humanscan_composite/human_novel_cache.pkl'),
     train_dataloader=dict(split_data=True))
 lr_config = dict(
     policy='step',
@@ -166,16 +160,16 @@ evaluation = [
         data='val_uncond',
         interval=eval_interval,
         feed_batch_size=32,
-        viz_step=1,
+        viz_step=32,
         metrics=dict(
             type='FIDKID',
-            num_images=1954 * 18,
+            num_images=1954 * 54,
             inception_pkl='work_dirs/cache/composite_train_inception_stylegan.pkl',
             inception_args=dict(
                 type='StyleGAN',
                 inception_path='work_dirs/cache/inception-2015-12-05.pt'),
             bgr2rgb=False),
-        viz_dir=work_dir + '/viz_uncond_vizdress',
+        viz_dir=work_dir + '/viz_uncond',
         save_best_ckpt=False)]
 
 total_iters = 200000
@@ -212,7 +206,6 @@ custom_hooks = [
                'train_cfg.offset_weight': 1,
                'pixel_loss_weight': 10.0,
                'seg_loss_weight':10.0,
-            #    'scale_loss_weight':0.5,
                'inner_loss_weight':2.5,
                'skin_loss_weight':0.25,
                'opacity_loss_weight':0.25,
@@ -223,7 +216,6 @@ custom_hooks = [
                'train_cfg.offset_weight': 0.5,
                'pixel_loss_weight': 5.0,
                'seg_loss_weight':5.0,
-            #    'scale_loss_weight':0.25,
                'inner_loss_weight':1.25,
                'skin_loss_weight':0.125,
                'opacity_loss_weight':0.05,

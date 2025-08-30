@@ -137,13 +137,6 @@ def load_smpl(path, smpl_type='smplx'):
         smpl_param = np.concatenate([np.array(tf_param['scale']).reshape(1, -1), np.array(tf_param['center'])[None], 
                     smpl_param_data['global_orient'], smpl_param_data['body_pose'].reshape(1, -1), smpl_param_data['betas']], axis=1)
     elif smpl_type == 'smplx':
-        # for custom
-        # smpl_param = np.concatenate([np.array(tf_param['scale']).reshape(1, -1), np.array(tf_param['center']).reshape(1, -1), 
-        #             np.zeros_like(np.array(smpl_param_data['global_orient']).reshape(1, -1)), np.array(smpl_param_data['body_pose']).reshape(1, -1), 
-        #             np.array(smpl_param_data['betas']).reshape(1, -1), np.array(smpl_param_data['left_hand_pose']).reshape(1, -1), np.array(smpl_param_data['right_hand_pose']).reshape(1, -1),
-        #             np.array(smpl_param_data['jaw_pose']).reshape(1, -1), np.array(smpl_param_data['leye_pose']).reshape(1, -1), np.array(smpl_param_data['reye_pose']).reshape(1, -1), 
-        #             np.array(smpl_param_data['expression']).reshape(1, -1)], axis=1)
-
         # for thuman
         smpl_param = np.concatenate([np.array(tf_param['scale']).reshape(1, -1), np.array([0, 0.35, 0]).reshape(1, -1), 
                     np.array(smpl_param_data['global_orient']).reshape(1, -1), np.array(smpl_param_data['body_pose']).reshape(1, -1), 
@@ -152,23 +145,17 @@ def load_smpl(path, smpl_type='smplx'):
                     np.array(smpl_param_data['expression']).reshape(1, -1)], axis=1)
     else:
         assert False
-    # smpl_param = np.concatenate([smpl_param_data['scale'][:, None], smpl_param_data['transl'], 
-    #                 smpl_param_data['global_orient'], smpl_param_data['body_pose'].reshape(1, -1), smpl_param_data['betas']], axis=1)
     return torch.from_numpy(smpl_param.astype(np.float32)).reshape(-1)
 
 def load_pose(path):
     with open(path, 'rb') as f:
         pose_param = json.load(f)
     w2c = np.array(pose_param['cam_param'], dtype=np.float32).reshape(36,4,4)
-    # w2c = np.array(pose_param['cam_param'], dtype=np.float32).reshape(1,4,4)
     cam_center = w2c[:, :3, 3]
     c2w = np.linalg.inv(w2c)
-    # pose[:,:2] *= -1
-    # pose = np.loadtxt(path, dtype=np.float32, delimiter=' ').reshape(9, 4)
     c2w = torch.from_numpy(c2w)
     cam_to_ndc = torch.cat([c2w[:, :3, :3], c2w[:, :3, 3:]], dim=-1)
     pose = torch.cat([cam_to_ndc, cam_to_ndc.new_tensor([[[0.0, 0.0, 0.0, 1.0]]]).expand(36, -1, -1)], dim=-2)
-    # pose = torch.cat([cam_to_ndc, cam_to_ndc.new_tensor([[[0.0, 0.0, 0.0, 1.0]]]).expand(1, -1, -1)], dim=-2)
 
     return [pose, torch.from_numpy(cam_center)]
 
@@ -269,6 +256,9 @@ def main():
             if eval_cfg.data not in args.data:
                 continue
 
+        viz_dir = cfg.evaluation[0]['viz_dir'] + '_transfer'
+        os.makedirs(viz_dir, exist_ok=True)
+
         # The default loader config
         loader_cfg = dict(
             samples_per_gpu=cfg.data.samples_per_gpu,
@@ -287,71 +277,31 @@ def main():
         })
 
         # load points data
-        all_mask = torch.as_tensor(np.load('/mnt/sdb/zwt/LayerAvatar/work_dirs/cache/part_label_full.npy')).unsqueeze(0).cuda()
-        # top_mask = all_mask==2
-        # hair_mask = all_mask==3
-        # shoes_mask = all_mask==4
-        # bottom_mask = all_mask==5
-        # cloth_mask = torch.as_tensor(np.load('/home/zhangweitian/HighResAvatar/work_dirs/cache/cloth_mask_thu.npy')).unsqueeze(0).cuda()
-        # pants_mask = torch.as_tensor(np.load('/home/zhangweitian/HighResAvatar/work_dirs/cache/pants_mask_thu.npy')).unsqueeze(0).cuda()
-        latent_code_a = torch.load('/mnt/sdb/zwt/LayerAvatar/work_dirs/ssdnerf_avatar_uncond_16bit_composite_new_wobug/viz_uncond_video/scene_0026.pth', map_location=all_mask.device)
-        latent_code_b = torch.load('/mnt/sdb/zwt/LayerAvatar/work_dirs/ssdnerf_avatar_uncond_16bit_composite_new_wobug/viz_uncond_video/scene_0262.pth', map_location=all_mask.device)
-        latent_code_c = torch.load('/mnt/sdb/zwt/LayerAvatar/work_dirs/ssdnerf_avatar_uncond_16bit_composite_new_wobug/viz_uncond_video/scene_0072.pth', map_location=all_mask.device)
-        latent_code_d = torch.load('/mnt/sdb/zwt/LayerAvatar/work_dirs/ssdnerf_avatar_uncond_16bit_composite_new_wobug/viz_uncond_video/scene_0179.pth', map_location=all_mask.device)
-        latent_code_e = torch.load('/mnt/sdb/zwt/LayerAvatar/work_dirs/ssdnerf_avatar_uncond_16bit_composite_new_wobug/viz_uncond_video/scene_0108.pth', map_location=all_mask.device)
-        # latent_code_f = torch.load('/mnt/sdb/zwt/LayerAvatar/work_dirs/ssdnerf_avatar_uncond_16bit_composite_new_wobug/viz_uncond_video/scene_0482.pth', map_location=all_mask.device)
+        all_mask = torch.as_tensor(np.load('work_dirs/cache/part_label_full.npy')).unsqueeze(0).cuda()
+
+        latent_code_a = torch.load('demo/transfer/scene_0026.pth', map_location=all_mask.device)
+        latent_code_b = torch.load('demo/transfer/scene_1939.pth', map_location=all_mask.device) # upper
+        latent_code_c = torch.load('demo/transfer/scene_1924.pth', map_location=all_mask.device) # lower
+        latent_code_d = torch.load('demo/transfer/scene_0072.pth', map_location=all_mask.device) # hair
+        latent_code_e = torch.load('demo/transfer/scene_0179.pth', map_location=all_mask.device) # shoes
         latent_code = torch.stack([latent_code_a, latent_code_b, latent_code_c, latent_code_d, latent_code_e], dim=0)
-        # latent_code_c = torch.load('/home/zhangweitian/HighResAvatar/work_dirs/ssdnerf_avatar_uncond_16bit_thuman_conv_final/viz_uncond/scene_0371.pth')
+
         decoder = model.module.decoder_ema
-        # pcd_map = torch.as_tensor(np.load('/home/zhangweitian/HighResAvatar/work_dirs/cache/init_posmap_smplx_thu.npy')).cuda() # 1, 3, 256, 256
-        # pcd_map_re = pcd_map.permute(0, 2, 3, 1).reshape(1, -1, 3).cuda()
-        # cloth_points = decoder.init_pcd[cloth_mask]
-        # dist_sq, idx, neighbors = ops.knn_points(pcd_map_re, cloth_points.unsqueeze(0), K=1, return_nn=True)
-        # cloth_uv = (dist_sq < 0.0001)[0]
-        # cloth_uv = cloth_uv.reshape(256, 256)
-        # cloth_uv[:15, :159] = False
-        # cloth_uv[151:, 155:] = False
-        # latent_code_a[:, cloth_uv] = latent_code_b[:, cloth_uv]
 
-
-        # latent_code_a = latent_code_a.unsqueeze(0)
-        # rows, cols = torch.nonzero(cloth_uv[80:, :], as_tuple=True)
-        # cloth_uv_viz = (cloth_uv * 255).to(torch.uint8).cpu().numpy()
-        # plt.imsave(os.path.join('/home/zhangweitian/HighResAvatar/edit_viz', 'cloth_uv_new.jpg'), cloth_uv_viz)
-
-
-        # pants_points = decoder.init_pcd[pants_mask]
-        # dist_sq, idx, neighbors = ops.knn_points(pcd_map_re, pants_points.unsqueeze(0), K=1, return_nn=True)
-        # pants_uv = (dist_sq < 0.0001)[0]
-        # pants_uv = pants_uv.reshape(256, 256)
-        # pants_uv[22:, :159] = False
-        # latent_code_a[:, pants_uv] = latent_code_c[:, pants_uv]
-        # latent_code_a = latent_code_a.unsqueeze(0)
-        # pants_uv_viz = (pants_uv * 255).to(torch.uint8).cpu().numpy()
-        # plt.imsave(os.path.join('/home/zhangweitian/HighResAvatar/edit_viz', 'pants_uv.jpg'), pants_uv_viz)
-
-
-        test_smpl_path = '/mnt/sdb/zwt/LayerAvatar/data/humanscan_thuman/human_train/0026/smplx/smplx_param.pkl'
-        test_smpl_param = load_smpl(test_smpl_path).unsqueeze(0).cuda()
         cfg = model.module.test_cfg
         h, w = cfg['img_size']
             
         # # save 360 degree rendering results
         with torch.no_grad():
-            cam_poses = load_pose('/mnt/sdb/zwt/LayerAvatar/data/cam_36.json')
-            # cam_poses = load_pose('/mnt/sdb/zwt/LayerAvatar/data/humanscan_thuman/human_train/0000/pose/340_000.json')
+            cam_poses = load_pose('demo/cam_36.json')
             view_poses = cam_poses[0].unsqueeze(0).cuda()
             view_intrinsics = cam_poses[1].unsqueeze(0).cuda()
             view_images, _, view_segs = model.module.render(
-                    decoder, latent_code, h, w, view_intrinsics, view_poses, test_smpl_param, cfg=cfg, return_norm=False)
-            pred_imgs = view_images.clamp(min=0, max=1).reshape(36, h, w, 1, 3).permute(0, 1, 3, 2, 4).flatten(2, 3)
-            pred_alpha = torch.cat([view_segs[..., :1], view_segs[..., 4:]], dim=-1).reshape(36, h, w, 1, 1).permute(0, 1, 3, 2, 4).flatten(2, 3)
-            # pred_imgs = view_images.clamp(min=0, max=1).reshape(1, h, w, 1, 3).permute(0, 1, 3, 2, 4).flatten(2, 3)
-            # pred_alpha = torch.cat([view_segs[..., :1], view_segs[..., 4:]], dim=-1).reshape(1, h, w, 1, 1).permute(0, 1, 3, 2, 4).flatten(2, 3)
-            save_imgs = torch.cat([pred_imgs, pred_alpha], dim=-1)
-            output_viz = torch.round(save_imgs * 255).to(torch.uint8).cpu().numpy()
-            for i in range(36):
-                plt.imsave(os.path.join('/mnt/sdb/zwt/LayerAvatar/trans', str(i)+'.png'), output_viz[i])
+                    decoder, latent_code, h, w, view_intrinsics, view_poses, smpl_params=None, cfg=cfg, return_norm=False, composite=True)
+            pred_imgs = view_images.clamp(min=0, max=1).reshape(36, h, w, 6, 3).permute(0, 1, 3, 2, 4).flatten(2, 3)
+            output_viz = torch.round(pred_imgs * 255).to(torch.uint8).cpu().numpy()
+            for i in tqdm(range(36)):
+                plt.imsave(os.path.join(viz_dir, str(i).zfill(4)+'.png'), output_viz[i])
 
 
     return

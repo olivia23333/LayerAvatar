@@ -24,8 +24,6 @@ def out_dict_to(d, device=None, code_dtype=torch.float32, optimizer_dtype=torch.
             code_=d['param']['code_'].clamp(
                 min=torch.finfo(code_dtype).min, max=torch.finfo(code_dtype).max
             ).to(device=device, dtype=code_dtype),
-            # density_grid=d['param']['density_grid'].to(device=device),
-            # density_bitfield=d['param']['density_bitfield'].to(device=device)
             ),
         optimizer=optimizer_state_to(d['optimizer'], device=device, dtype=optimizer_dtype))
 
@@ -55,9 +53,6 @@ class MultiSceneNeRF(BaseNeRF):
         self.num_file_writers = num_file_writers
         self.is_file_writers_initialized = False
 
-        # betas =  torch.tensor([0.14931345,-0.8242707,1.,-0.2995883,1.,1.,0.16425188,0.25074014,-0.26973698,-0.5869559]).unsqueeze(0)
-        # self.register_parameter('betas', torch.nn.Parameter(betas))
-
     def init_file_writers(self, save_dir):
         if self.num_file_writers > 0:
             def file_writer(queue):
@@ -76,7 +71,6 @@ class MultiSceneNeRF(BaseNeRF):
     def load_cache(self, data):
         device = get_module_device(self)
         num_scenes = len(data['scene_id'])
-        # num_init = init_pcd.shape[0]
         rank, ws = get_dist_info()
 
         if self.cache is not None:
@@ -108,17 +102,9 @@ class MultiSceneNeRF(BaseNeRF):
         else:
             cache_list = [None for _ in range(num_scenes)]
         code_list_ = []
-        # masks = []
-        # points = []
-        # density_grid = []
-        # density_bitfield = []
         for scene_state_single in cache_list:
             if scene_state_single is None:
                 code_list_.append(self.get_init_code_(None, device))
-                # masks.append(self.get_init_mask_(None, num_init, device))
-                # points.append(self.get_init_points_(None, init_pcd, device))
-                # density_grid.append(self.get_init_density_grid(None, device))
-                # density_bitfield.append(self.get_init_density_bitfield(None, device))
             else:
                 if 'code_' in scene_state_single['param']:
                     code_ = scene_state_single['param']['code_'].to(dtype=torch.float32, device=device)
@@ -131,35 +117,17 @@ class MultiSceneNeRF(BaseNeRF):
                     code_ = self.code_activation.inverse(
                         scene_state_single['param']['code'].to(dtype=torch.float32, device=device))
                 code_list_.append(code_.requires_grad_(True))
-                # if 'mask' in scene_state_single['param']:
-                    # masks.append(scene_state_single['param']['mask'].to(device))
-                    # points.append(scene_state_single['param']['points'].to(device))
-                # else:
-                    # masks.append(self.get_init_mask_(None, num_init, device))
-                    # points.append(self.get_init_points_(None, init_pcd, device))
-                # density_grid.append(scene_state_single['param']['density_grid'].to(device))
-                # density_bitfield.append(scene_state_single['param']['density_bitfield'].to(device))
-        # density_grid = torch.stack(density_grid, dim=0)
-        # density_bitfield = torch.stack(density_bitfield, dim=0)
-        # masks = torch.stack(masks, dim=0)
-        # points = torch.stack(points, dim=0)
         code_optimizers = self.build_optimizer(code_list_, self.train_cfg)
         for ind, scene_state_single in enumerate(cache_list):
             if scene_state_single is not None and 'optimizer' in scene_state_single:
                 optimizer_set_state(code_optimizers[ind], scene_state_single['optimizer'])
-        # return code_list_, code_optimizers, density_grid, density_bitfield
-        # return code_list_, code_optimizers
         return code_list_, code_optimizers
 
-    # def save_cache(self, code_list_, code_optimizers,
-    #                density_grid, density_bitfield, scene_id, scene_name):
     def save_cache(self, code_list_, code_optimizers, scene_id, scene_name):
         if self.cache_16bit:
-            # code_dtype = torch.float16 if code_list_[0].dtype == torch.float32 else code_list_[0].dtype
             code_dtype = torch.float16 if code_list_[0][0].dtype == torch.float32 else code_list_[0][0].dtype
             optimizer_dtype = torch.bfloat16
         else:
-            # code_dtype = code_list_[0].dtype
             code_dtype = code_list_[0][0].dtype
             optimizer_dtype = torch.float32
         if 'save_dir' in self.train_cfg:
@@ -176,8 +144,6 @@ class MultiSceneNeRF(BaseNeRF):
                 scene_name=scene_name[ind],
                 param=dict(
                     code_=code_single_.data,
-                    # density_grid=density_grid[ind],
-                    # density_bitfield=density_bitfield[ind]
                     ),
                 optimizer=code_optimizers[ind].state_dict())
             if self.cache is not None:
@@ -211,8 +177,6 @@ class MultiSceneNeRF(BaseNeRF):
                         os.path.join(save_dir, scene_name + '.pth'))
 
     def train_step(self, data, optimizer, running_status=None):
-        # torch.cuda.synchronize()
-        # start_time = time.time()
         code_list_, code_optimizers = self.load_cache(data)
         iter = running_status['iteration']
 
@@ -224,32 +188,16 @@ class MultiSceneNeRF(BaseNeRF):
         smpl_params = data['cond_smpl_param']
 
         num_scenes, num_imgs, h, w, _ = cond_imgs.size()
-        # (num_scenes, num_imgs, h, w, 3)
-        # dt_gamma_scale = self.train_cfg.get('dt_gamma_scale', 0.0)
-        # (num_scenes,)
-        # dt_gamma = dt_gamma_scale / cond_intrinsics[..., :2].mean(dim=(-2, -1))
         cameras = torch.cat([cond_intrinsics, cond_poses.reshape(num_scenes, num_imgs, -1)], dim=-1)
         target_imgs = cond_imgs
         target_segs = cond_segs
         dt_gamma = 0.0
 
-        # load_data_time = time.time()
-        # print('load_data_time:{}'.format(load_data_time-start_time))
-
         extra_scene_step = self.train_cfg.get('extra_scene_step', 0)
         if extra_scene_step > 0:
             cfg = self.train_cfg.copy()
             cfg['n_inverse_steps'] = extra_scene_step
-            # self.inverse_code(
-            #     self.decoder, cond_imgs, cond_rays_o, cond_rays_d, dt_gamma=dt_gamma, cfg=cfg,
-            #     code_=code_list_,
-            #     density_grid=density_grid,
-            #     density_bitfield=density_bitfield,
-            #     code_optimizer=code_optimizers)
-            # code, loss_decoder, loss_dict_decoder = self.inverse_code(
-            #     self.decoder, cond_imgs, cond_segs, cameras, dt_gamma=dt_gamma, smpl_params=smpl_params, cfg=cfg,
-            #     code_=code_list_,
-            #     code_optimizer=code_optimizers)
+
             code, loss_decoder, loss_dict_decoder = self.inverse_code(
                 self.decoder, target_imgs, target_segs, cameras, dt_gamma=dt_gamma, smpl_params=smpl_params, cfg=cfg,
                 code_=code_list_,
@@ -259,41 +207,19 @@ class MultiSceneNeRF(BaseNeRF):
         # ==== joint optimization ====
         for code_optimizer in code_optimizers:
             code_optimizer.zero_grad()
-        # if iter % 4 == 0:
         optimizer['decoder'].zero_grad()
-        # optimizer['betas'].zero_grad()
-
-        # extra_time = time.time()
-        # print('extra_scene_step:{}'.format(extra_time-load_data_time))
 
         code = self.code_activation(torch.stack(code_list_, dim=0), update_stats=True)
-        # code = self.code_activation(torch.stack(code_list_, dim=0))
 
-        # self.update_extra_state(
-        #     self.decoder, code, density_grid, density_bitfield,
-        #     0, density_thresh=self.train_cfg.get('density_thresh', 0.01))
-
-        # loss, log_vars, out_rgbs, target_rgbs = self.loss_decoder(
-        #     self.decoder, code, density_bitfield, cond_rays_o, cond_rays_d,
-        #     cond_imgs, dt_gamma, cfg=self.train_cfg)
-
-        # loss, log_vars, out_rgbs, target_rgbs = self.loss_decoder(
-        #     self.decoder, code, cond_imgs, cond_segs, cameras, smpl_params, 
-        #     dt_gamma, init=iter<200, cfg=self.train_cfg)
         loss, log_vars, out_rgbs, target_rgbs = self.loss_decoder(
                 self.decoder, code, target_imgs, target_segs, cameras, smpl_params, 
                 dt_gamma, cfg=self.train_cfg, init=(iter < cfg['init_iter']))
         loss.backward()
         log_vars.update(loss=float(loss))
 
-        # if (iter+1) % 4 == 0:
         optimizer['decoder'].step()
-        # optimizer['betas'].step()
         for code_optimizer in code_optimizers:
             code_optimizer.step()
-
-        # decoder_time = time.time()
-        # print('decoder_time:{}'.format(decoder_time-extra_time))
 
         # ==== save cache ====
         self.save_cache(
@@ -307,68 +233,40 @@ class MultiSceneNeRF(BaseNeRF):
             code_rms = code.square().flatten(1).mean().sqrt()
             log_vars.update(train_psnr=float(train_psnr.mean()),
                             code_rms=float(code_rms.mean()))
-            # if 'test_imgs' in data and data['test_imgs'] is not None:
-            # print(iter)
             rank, ws = get_dist_info()
             if iter % self.train_cfg['eval_iteration'] == 0 and rank == 0:
-                # if 'test_imgs' in data and data['test_imgs'] is not None:
                 log_vars.update(self.eval_and_viz(
                     data, self.decoder, code, viz_dir=self.train_cfg['viz_dir'], cfg=self.train_cfg, recon=True)[0])
 
         # ==== outputs ====
         outputs_dict = dict(
             log_vars=log_vars, num_samples=num_scenes)
-        # print(self.betas)
-        # save_time = time.time()
-        # print('save_time:{}'.format(save_time-decoder_time))
         return outputs_dict
 
     def val_step(self, data, viz_dir=None, viz_dir_guide=None, **kwargs):
         decoder = self.decoder_ema if self.decoder_use_ema else self.decoder
         with torch.no_grad():
             if 'code' in data:
-                assert False
                 code = self.load_scene(data, load_density=True)
-                # masks, points = self.get_density(decoder, code, cfg=self.test_cfg)
-                # print(masks[0].sum())
-                # assert False
             elif 'cond_imgs' in data:
-                assert False
                 cond_mode = self.test_cfg.get('cond_mode', 'guide')
                 if cond_mode == 'guide':
-                    assert False
-                    # code, density_grid, density_bitfield = self.val_guide(data, **kwargs)
                     code = self.val_guide(data, **kwargs)
                 elif cond_mode == 'optim':
-                    assert False
-                    # code, density_grid, density_bitfield = self.val_optim(data, **kwargs)
                     code = self.val_optim(data, **kwargs)
                 elif cond_mode == 'guide_optim':
                     code = self.val_guide(data, **kwargs)
                     if viz_dir_guide is not None and 'test_poses' in data:
-                        assert False
-                    code = self.val_optim(
-                        data,
-                        code_=self.code_activation.inverse(code).requires_grad_(True),
-                        **kwargs)
+                        code = self.val_optim(
+                            data,
+                            code_=self.code_activation.inverse(code).requires_grad_(True),
+                            **kwargs)
                 else:
                     raise AttributeError
             else:
-                device = get_module_device(self)
-                # code = torch.load('/home/zhangweitian/HighResAvatar/cache/stage1_avatar_16bit_finalfit/code/0029_00012_10_00141.pth')['param']['code_'].to(device)
-                # code = torch.load('/mnt/sdb/zwt/LayerAvatar/cache/ssdnerf_stage1_avatar_recons_16bit_wobug_reconsample_noise/code/1519.pth', map_location='cpu')['param']['code_'].to(device)
-                code = torch.load('/mnt/sdb/zwt/LayerAvatar/work_dirs/ssdnerf_stage1_avatar_recons_16bit_wobug_reconsample_noise3/viz_cond/scene_0069.pth', map_location='cpu').to(device)
-                # code = torch.load('/home/zhangweitian/HighResAvatar/cache/stage1_avatar_16bit_finalfit_sample2/viz/scene_0015.pth').to(device)
-                code = code.unsqueeze(0)
-                # .float()
-                # code = [self.code_activation(attr) for attr in self.attr]
-                # code = torch.cat(code, dim=1)
-                # code = self.val_uncond(data, **kwargs)
+                code = self.val_uncond(data, **kwargs)
             # ==== evaluate reconstruction ====
             if 'test_poses' in data:
-                # log_vars, pred_imgs = self.eval_and_viz(
-                #     data, decoder, code, density_bitfield,
-                #     viz_dir=viz_dir, cfg=self.test_cfg, ortho=self.ortho)
                 log_vars, pred_imgs = self.eval_and_viz(
                     data, decoder, code,
                     viz_dir=viz_dir, cfg=self.test_cfg)
@@ -387,12 +285,9 @@ class MultiSceneNeRF(BaseNeRF):
                     decoder.visualize(
                         code, data['scene_name'],
                         viz_dir, code_range=self.test_cfg.get('clip_range', [-1, 1]))
-        # print(time.time()-s_time)
-        # assert False
         # ==== save 3D code ====
         save_dir = self.test_cfg.get('save_dir', None)
         if save_dir is not None:
-            # self.save_scene(save_dir, code, density_grid, density_bitfield, data['scene_name'])
             self.save_scene(save_dir, code, data['scene_name'])
             save_mesh = self.test_cfg.get('save_mesh', False)
             if save_mesh:
