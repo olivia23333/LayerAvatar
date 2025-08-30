@@ -1,9 +1,9 @@
 # LayerAvatar: Disentangled Clothed Avatar Generation with Layered Representation
-## [Arxiv](https://arxiv.org/abs/2501.04631) | [Project Page](https://olivia23333.github.io/LayerAvatar/) | ICCV Highlight
+## [Arxiv](https://arxiv.org/abs/2501.04631) | [Project Page](https://olivia23333.github.io/LayerAvatar/)
 
-<img src="assets/teaser.pdf" /> 
+<img src="assets/teaser.png" /> 
 
-Official PyTorch implementation of ICCV paper: [*Disentangled Clothed Avatar Generation with Layered Representation*](https://arxiv.org/abs/2501.04631).
+Official PyTorch implementation of ICCV Highlight paper: [*Disentangled Clothed Avatar Generation with Layered Representation*](https://arxiv.org/abs/2501.04631).
 
 ## Getting Started
 
