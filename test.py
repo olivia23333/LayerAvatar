@@ -32,6 +32,10 @@ def parse_args():
         '--deterministic',
         action='store_true',
         help='whether to set deterministic options for CUDNN backend.')
+    parser.add_argument(
+        '--avoid_ptr',
+        action='store_true',
+        help='whether to avoid penetration')
     args = parser.parse_args()
     return args
 
@@ -42,6 +46,8 @@ def args_to_str(args):
         argv += ['--seed', str(args.seed)]
     if args.deterministic:
         argv.append('--deterministic')
+    if args.avoid_ptr:
+        argv.append('--avoid_ptr')
     if args.data is not None:
         argv += ['--data'] + args.data
     if args.mode == 'viz' or args.mode == 'animate':

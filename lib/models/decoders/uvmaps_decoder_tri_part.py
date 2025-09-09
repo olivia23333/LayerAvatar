@@ -221,15 +221,19 @@ class UVTPDecoder(VolumeRenderer):
             self.cov_net[0].weight.data.uniform_(-1e-5, 1e-5)
             self.cov_net[0].bias.data.zero_()
 
-    def xyz_transform(self, xyz, smpl_params=None, num_scenes=1):
+    def xyz_transform(self, xyz, smpl_params=None, num_scenes=1, avoid_penetration=False):
         if xyz.dim() != 3:
             print(xyz.shape)
             assert False
-        self.deformer.prepare_deformer(smpl_params, num_scenes, device=xyz.device)
-        xyz, tfs = self.deformer(xyz, mask=(self.face_mask+self.hands_mask+self.outside_mask), cano=False)
+        if avoid_penetration:
+            pen_mask = (self.pcd_label == 2) | (self.pcd_label == 5) 
+        else:
+            pen_mask = None
+        self.deformer.prepare_deformer(smpl_params, num_scenes, device=xyz.device, avoid_penetration=avoid_penetration)
+        xyz, tfs = self.deformer(xyz, mask=(self.face_mask+self.hands_mask+self.outside_mask), cano=False, avoid_penetration=avoid_penetration, pen_mask=pen_mask)
         return xyz, tfs
 
-    def extract_pcd(self, code, smpl_params, init=False, composite=False):
+    def extract_pcd(self, code, smpl_params, init=False, composite=False, avoid_penetration=False):
         if isinstance(code, list):
             num_scenes, _, h, w = code[0].size()
         elif code.dim() == 5:
@@ -245,7 +249,7 @@ class UVTPDecoder(VolumeRenderer):
         hands_color = rgbs[:, :self.hands_mask.shape[1]][:, self.face_mask[0]]
         mean_body_color = hands_color.mean(1)
         canon_pcd = init_pcd + offset
-        defm_pcd, tfs = self.xyz_transform(canon_pcd, smpl_params, num_scenes)
+        defm_pcd, tfs = self.xyz_transform(canon_pcd, smpl_params, num_scenes, avoid_penetration=avoid_penetration)
         
         return defm_pcd, sigmas, rgbs, offset, radius, tfs, rot, mean_body_color, attrmap
     
@@ -282,8 +286,8 @@ class UVTPDecoder(VolumeRenderer):
             wo_mask = torch.logical_or(self.hands_mask, self.offset_mask)[0]
             body_mask *= torch.cat([~wo_mask, torch.zeros(89490-34858).to(body_mask.device).bool()])
             output_attr[0, body_mask, 1:4] = output_attr[3, body_mask, 1:4]
-            output_attr[0, idx_shoes[0], 1:4] = output_attr[4, idx_shoes[0], 1:4]
             output_attr[0, idx_top[0], 1:4] = output_attr[1, idx_top[0], 1:4]
+            output_attr[0, idx_shoes[0], 1:4] = output_attr[4, idx_shoes[0], 1:4]
             output_attr[0, idx_bottom[0], 1:4] = output_attr[2, idx_bottom[0], 1:4]
 
             output_attr[0, cloth_mask] = output_attr[1, cloth_mask]
@@ -381,7 +385,7 @@ class UVTPDecoder(VolumeRenderer):
                        vmin=code_range[0], vmax=code_range[1])
 
     def forward(self, code, grid_size, smpl_params, cameras, num_imgs,
-                dt_gamma=0, perturb=False, T_thresh=1e-4, return_loss=False, return_norm=False, init=False, mask=None, composite=False):
+                dt_gamma=0, perturb=False, T_thresh=1e-4, return_loss=False, return_norm=False, init=False, mask=None, composite=False, avoid_penetration=False):
         """
         Args:
             rays_o: Shape (num_scenes, num_rays_per_scene, 3)
@@ -448,7 +452,7 @@ class UVTPDecoder(VolumeRenderer):
             segs = []
             offsets = None
             scale = None
-            xyzs, sigmas, rgbs, offsets, radius, tfs, rot, _, attrmap = self.extract_pcd(code, smpl_params, init=False, composite=composite)
+            xyzs, sigmas, rgbs, offsets, radius, tfs, rot, _, attrmap = self.extract_pcd(code, smpl_params, init=False, composite=composite, avoid_penetration=avoid_penetration)
 
             R_delta = batch_rodrigues(rot.reshape(-1, 3))
             R = torch.bmm(self.init_rot.repeat(num_scenes, 1, 1), R_delta)

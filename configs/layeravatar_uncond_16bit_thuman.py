@@ -109,8 +109,8 @@ optimizer = dict(
     decoder=dict(type='Adam', lr=1e-3, weight_decay=0.))
 dataset_type = 'PartDataset'
 data = dict(
-    samples_per_gpu=1,
-    workers_per_gpu=1,
+    samples_per_gpu=4,
+    workers_per_gpu=2,
     train=dict(
         type=dataset_type,
         data_prefix='data/humanscan_thuman/human_train',

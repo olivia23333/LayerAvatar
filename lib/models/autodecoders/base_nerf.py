@@ -926,7 +926,7 @@ class BaseNeRF(nn.Module):
         decoder.train(decoder_training_prev)
         return code.detach(), loss, loss_dict
 
-    def render(self, decoder, code, h, w, intrinsics, poses, smpl_params, cfg=dict(), mask=None, return_norm=False, return_viz=False, composite=False):
+    def render(self, decoder, code, h, w, intrinsics, poses, smpl_params, cfg=dict(), mask=None, return_norm=False, return_viz=False, composite=False, avoid_penetration=False):
         decoder_training_prev = decoder.training
         decoder.train(False)
         dt_gamma = 0.0
@@ -935,7 +935,7 @@ class BaseNeRF(nn.Module):
         cameras = torch.cat([intrinsics, poses.reshape(num_scenes, num_imgs, -1)], dim=-1)
         outputs = decoder(
             code, self.grid_size, smpl_params, cameras,
-            num_imgs, mask=mask, dt_gamma=dt_gamma, perturb=False, composite=composite)
+            num_imgs, mask=mask, dt_gamma=dt_gamma, perturb=False, composite=composite, avoid_penetration=avoid_penetration)
         out_image = outputs['image']
         out_seg = outputs['segs']
         out_vizmask = outputs['viz_masks']
@@ -967,7 +967,7 @@ class BaseNeRF(nn.Module):
 
         return [pose, torch.from_numpy(cam_center)]
     
-    def eval_and_viz(self, data, decoder, code, viz_dir=None, cfg=dict(), ortho=True, recon=False, return_norm=False):
+    def eval_and_viz(self, data, decoder, code, viz_dir=None, cfg=dict(), ortho=True, recon=False, return_norm=False, avoid_penetration=False):
         scene_name = data['scene_name']  # (num_scenes,)
         if recon:
             test_intrinsics = data['cond_intrinsics'][:, 0::9]  # (num_scenes, num_imgs, 4), in [fx, fy, cx, cy]
@@ -999,13 +999,13 @@ class BaseNeRF(nn.Module):
             h, w = cfg['img_size']
         if test_smpl_param is None or test_smpl_param.dim() == 2:
             image, norm_map, seg_imgs = self.render(
-                decoder, code, h, w, test_intrinsics, test_poses, test_smpl_param, cfg=cfg, return_norm=return_norm)
+                decoder, code, h, w, test_intrinsics, test_poses, test_smpl_param, cfg=cfg, return_norm=return_norm, avoid_penetration=avoid_penetration)
         elif test_smpl_param.dim() == 3:
             image = []
             segs = []
             for num in range(test_smpl_param.shape[1]):
                 image_single, norm_map, seg_imgs = self.render(
-                    decoder, code, h, w, test_intrinsics, test_poses, test_smpl_param[:, num], cfg=cfg, return_norm=return_norm)
+                    decoder, code, h, w, test_intrinsics, test_poses, test_smpl_param[:, num], cfg=cfg, return_norm=return_norm, avoid_penetration=avoid_penetration)
                 image.append(image_single)
                 segs.append(seg_imgs)
             image = torch.cat(image, dim=1)

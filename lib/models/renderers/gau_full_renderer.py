@@ -1,4 +1,5 @@
-from diff_gaussian_rasterization import GaussianRasterizationSettings, GaussianRasterizer
+# from diff_gaussian_rasterization import GaussianRasterizationSettings, GaussianRasterizer
+from diff_Gauss import GaussianRasterizationSettings, GaussianRasterizer
 import torch
 import torch.nn as nn
 import math

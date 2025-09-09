@@ -16,7 +16,7 @@ from mmgen.models.architectures.common import get_module_device
 
 
 def evaluate_3d(model, dataloader, metrics=None,
-                feed_batch_size=32, viz_dir=None, viz_step=1, sample_kwargs=dict()):
+                feed_batch_size=32, viz_dir=None, viz_step=1, avoid_penetration=False, sample_kwargs=dict()):
     batch_size = dataloader.batch_size
     rank, ws = get_dist_info()
     total_batch_size = batch_size * ws
@@ -183,7 +183,7 @@ def load_pose(path):
 
 
 def viz_3d(model, batch_size, max_num_scenes, metrics=None,
-                feed_batch_size=32, viz_dir=None, viz_step=1, sample_kwargs=dict()):
+                feed_batch_size=32, viz_dir=None, viz_step=1, avoid_penetration=False, sample_kwargs=dict()):
     batch_size = batch_size
     rank, ws = get_dist_info()
     total_batch_size = batch_size * ws
@@ -210,11 +210,11 @@ def viz_3d(model, batch_size, max_num_scenes, metrics=None,
             for j in range(ws):
                 if rank == j:
                     data['scene_id'] = current_batch[batch_size*j:batch_size*(j+1)]
-                    data['scene_name'] = [f'scene_{str(idx).zfill(4)}' for idx in data['scene_id']]
+                    data['scene_name'] = [f'{str(idx).zfill(4)}' for idx in data['scene_id']]
             data['test_poses'] = cam_poses[0].unsqueeze(0).repeat(batch_size, 1, 1, 1)
             data['test_intrinsics'] = cam_poses[1].unsqueeze(0).repeat(batch_size, 1, 1)
             outputs_dict = model.val_step(
-                data, show_pbar=rank == 0,
+                data, show_pbar=rank == 0, avoid_penetration=avoid_penetration,
                 **sample_kwargs_)
             for k, v in outputs_dict['log_vars'].items():
                 if k in log_vars:
@@ -245,7 +245,7 @@ def viz_3d(model, batch_size, max_num_scenes, metrics=None,
 
 
 def animate_3d(model, batch_size, max_num_scenes, smplx_path, metrics=None,
-                feed_batch_size=32, viz_dir=None, viz_step=1, mini_batch=30, sample_kwargs=dict()):
+                feed_batch_size=32, viz_dir=None, viz_step=1, mini_batch=30, avoid_penetration=False, sample_kwargs=dict()):
     batch_size = batch_size
     rank, ws = get_dist_info()
     total_batch_size = batch_size * ws
@@ -281,12 +281,12 @@ def animate_3d(model, batch_size, max_num_scenes, smplx_path, metrics=None,
             for j in range(ws):
                 if rank == j:
                     data['scene_id'] = current_batch[batch_size*j:batch_size*(j+1)]
-                    data['scene_name'] = [f'scene_{str(idx).zfill(4)}' for idx in data['scene_id']]
+                    data['scene_name'] = [f'{str(idx).zfill(4)}' for idx in data['scene_id']]
             data['test_poses'] = cam_poses[0].unsqueeze(0).repeat(batch_size, 1, 1, 1)
             data['test_intrinsics'] = cam_poses[1].unsqueeze(0).repeat(batch_size, 1, 1)
 
             if 'stageii' in smplx_path[0]:
-                data['test_poses'] = torch.bmm(data['test_poses'][:, 10], rotmat.unsqueeze(0).expand(batch_size, -1, -1).float()).unsqueeze(1)
+                data['test_poses'] = torch.bmm(data['test_poses'][:, 6], rotmat.unsqueeze(0).expand(batch_size, -1, -1).float()).unsqueeze(1)
                 data['test_intrinsics'] = data['test_intrinsics'][:, 32:33]
             else:
                 data['test_poses'] = torch.bmm(data['test_poses'][:, 1], rotmat.unsqueeze(0).expand(batch_size, -1, -1).float()).unsqueeze(1)
@@ -298,6 +298,8 @@ def animate_3d(model, batch_size, max_num_scenes, smplx_path, metrics=None,
                 test_smpl_param = torch.cat((smplx_param, betas), 2)[:, ::8]
             else:
                 test_smpl_param = torch.cat((smplx_param, betas), 2)
+                test_smpl_param = test_smpl_param[:, :200]
+                test_smpl_param = test_smpl_param[:, ::2]
             if test_smpl_param.shape[1] > mini_batch:
                 batch_test_smpl_param = test_smpl_param.split(mini_batch, dim=1)
                 data['mini_batch'] = mini_batch
@@ -308,7 +310,7 @@ def animate_3d(model, batch_size, max_num_scenes, smplx_path, metrics=None,
                 data['test_smpl_param'] = test_smpl_param
                 data['batch_idx'] = batch_idx
                 outputs_dict = model.val_step(
-                    data, show_pbar=rank == 0,
+                    data, show_pbar=rank == 0, avoid_penetration=avoid_penetration,
                     **sample_kwargs_)
                 if batch_idx == 0:
                     test_code = outputs_dict['code']

@@ -64,6 +64,10 @@ def parse_args():
         action='store_true',
         help='whether to set deterministic options for CUDNN backend.')
     parser.add_argument(
+        '--avoid_ptr',
+        action='store_true',
+        help='whether to avoid penetration')
+    parser.add_argument(
         '--data',
         type=str,
         nargs='+')
@@ -209,12 +213,14 @@ def main():
 
         max_num_scenes=args.num_scenes[0]
 
+
         log_vars = animate_3d(
             model, batch_size=cfg.data.samples_per_gpu, max_num_scenes=max_num_scenes, smplx_path=args.pose_path, metrics=None,
             feed_batch_size=eval_cfg.get('feed_batch_size', 32),
             viz_dir=eval_cfg.get('viz_dir', 'viz_uncond') + '_animate',
             # viz_step=eval_cfg.get('viz_step', 1),
             viz_step=1,
+            avoid_penetration=args.avoid_ptr,
             sample_kwargs=eval_cfg.get('sample_kwargs', dict()))
 
         # if rank == 0:

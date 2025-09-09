@@ -72,6 +72,10 @@ def parse_args():
         action='store_true',
         help='whether to set deterministic options for CUDNN backend.')
     parser.add_argument(
+        '--avoid_ptr',
+        action='store_true',
+        help='whether to avoid penetration')
+    parser.add_argument(
         '--data',
         type=str,
         nargs='+')
@@ -279,11 +283,17 @@ def main():
         # load points data
         all_mask = torch.as_tensor(np.load('work_dirs/cache/part_label_full.npy')).unsqueeze(0).cuda()
 
-        latent_code_a = torch.load('demo/transfer/scene_0026.pth', map_location=all_mask.device)
-        latent_code_b = torch.load('demo/transfer/scene_1939.pth', map_location=all_mask.device) # upper
-        latent_code_c = torch.load('demo/transfer/scene_1924.pth', map_location=all_mask.device) # lower
-        latent_code_d = torch.load('demo/transfer/scene_0072.pth', map_location=all_mask.device) # hair
-        latent_code_e = torch.load('demo/transfer/scene_0179.pth', map_location=all_mask.device) # shoes
+        # latent_code_a = torch.load('demo/transfer/scene_0026.pth', map_location=all_mask.device)
+        # latent_code_b = torch.load('demo/transfer/scene_1939.pth', map_location=all_mask.device) # upper
+        # latent_code_c = torch.load('demo/transfer/scene_1924.pth', map_location=all_mask.device) # lower
+        # latent_code_d = torch.load('demo/transfer/scene_0072.pth', map_location=all_mask.device) # hair
+        # latent_code_e = torch.load('demo/transfer/scene_0179.pth', map_location=all_mask.device) # shoes
+        latent_code_a = torch.load('work_dirs/layeravatar_uncond_composite/viz_uncond_viz/scene_scene_0016.pth', map_location=all_mask.device)
+        latent_code_b = torch.load('work_dirs/layeravatar_uncond_composite/viz_uncond_viz/scene_scene_0069.pth', map_location=all_mask.device) # upper
+        latent_code_c = torch.load('work_dirs/layeravatar_uncond_composite/viz_uncond_viz/scene_scene_0083.pth', map_location=all_mask.device) # lower
+        latent_code_d = torch.load('work_dirs/layeravatar_uncond_composite/viz_uncond_viz/scene_scene_0001.pth', map_location=all_mask.device) # hair
+        latent_code_e = torch.load('work_dirs/layeravatar_uncond_composite/viz_uncond_viz/scene_scene_0048.pth', map_location=all_mask.device) # shoes
+
         latent_code = torch.stack([latent_code_a, latent_code_b, latent_code_c, latent_code_d, latent_code_e], dim=0)
 
         decoder = model.module.decoder_ema
@@ -297,7 +307,7 @@ def main():
             view_poses = cam_poses[0].unsqueeze(0).cuda()
             view_intrinsics = cam_poses[1].unsqueeze(0).cuda()
             view_images, _, view_segs = model.module.render(
-                    decoder, latent_code, h, w, view_intrinsics, view_poses, smpl_params=None, cfg=cfg, return_norm=False, composite=True)
+                    decoder, latent_code, h, w, view_intrinsics, view_poses, smpl_params=None, cfg=cfg, return_norm=False, composite=True, avoid_penetration=args.avoid_ptr)
             pred_imgs = view_images.clamp(min=0, max=1).reshape(36, h, w, 6, 3).permute(0, 1, 3, 2, 4).flatten(2, 3)
             output_viz = torch.round(pred_imgs * 255).to(torch.uint8).cpu().numpy()
             for i in tqdm(range(36)):

@@ -140,14 +140,15 @@ Downloaded trained model from following link and put it to corresponding local p
 If you are using RTX 3090 for testing, please set `samples_per_gpu=4` and `workers_per_gpu=2` in config file to 1 to avoid CUDA OUT OF MEMORY problem.
 
 ```bash
+# You can add --avoid_ptr to mitigate penetration problem, this argumentation will move top and bottom clothes outwards by a small margin
 # For novel view synthesis (We provide 36 views)
-python test.py /PATH/TO/CONFIG /PATH/TO/CHECKPOINT --gpu-ids 0 1 --mode 'viz'
+python test.py /PATH/TO/CONFIG /PATH/TO/CHECKPOINT --gpu-ids 0 1 --mode 'viz' --avoid_ptr --seed xxx
 
 # For animation (We use the motion file from the X-Avatar repo for demo. The code also support AMASS motion dataset, you can download the CMU data from the AMASS dataset and put it in ./demo/ani_exp/ani)
-python test.py /PATH/TO/CONFIG /PATH/TO/CHECKPOINT --gpu-ids 0 1 --mode 'animate' --pose_path demo/ani/xxx
+python test.py /PATH/TO/CONFIG /PATH/TO/CHECKPOINT --gpu-ids 0 1 --mode 'animate' --pose_path demo/ani/xxx --avoid_ptr --seed xxx
 
 # For attribute transfer(upper cloth, pants, hair and shoes), use composte pre-train model
-python test.py /PATH/TO/CONFIG /PATH/TO/CHECKPOINT --gpu-ids 0 1 --mode 'transfer'
+python test.py /PATH/TO/CONFIG /PATH/TO/CHECKPOINT --gpu-ids 0 1 --mode 'transfer' --avoid_ptr
 
 # For evaluation, to run this you need to finish the data preparation process below
 python test.py /PATH/TO/CONFIG /PATH/TO/CHECKPOINT --gpu-ids 0 1 --mode 'eval'

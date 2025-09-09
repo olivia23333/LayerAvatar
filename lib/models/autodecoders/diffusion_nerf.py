@@ -403,7 +403,7 @@ class DiffusionNeRF(MultiSceneNeRF):
         decoder.train(decoder_training_prev)
         return self.code_activation(code_)
 
-    def val_step(self, data, viz_dir=None, viz_dir_guide=None, **kwargs):
+    def val_step(self, data, viz_dir=None, viz_dir_guide=None, avoid_penetration=False, **kwargs):
         decoder = self.decoder_ema if self.decoder_use_ema else self.decoder
         with torch.no_grad():
             if 'code' in data:
@@ -433,11 +433,11 @@ class DiffusionNeRF(MultiSceneNeRF):
             if 'test_poses' in data:
                 log_vars, pred_imgs = self.eval_and_viz(
                     data, decoder, code,
-                    viz_dir=viz_dir, cfg=self.test_cfg, ortho=self.ortho, return_norm=self.return_norm)
+                    viz_dir=viz_dir, cfg=self.test_cfg, ortho=self.ortho, return_norm=self.return_norm, avoid_penetration=avoid_penetration)
             elif 'cond_poses' in data:
                 log_vars, pred_imgs = self.eval_and_viz(
                     data, decoder, code,
-                    viz_dir=viz_dir, cfg=self.test_cfg, ortho=self.ortho, recon=True, return_norm=self.return_norm)
+                    viz_dir=viz_dir, cfg=self.test_cfg, ortho=self.ortho, recon=True, return_norm=self.return_norm, avoid_penetration=avoid_penetration)
             else:
                 log_vars = dict()
                 pred_imgs = None

@@ -108,7 +108,7 @@ class SMPLXDeformer(torch.nn.Module):
         self.deformer.scale_kernel = self.deformer.scale_kernel.type(self.dtype)
         self.deformer.offset_kernel = self.deformer.offset_kernel.type(self.dtype)
 
-    def prepare_deformer(self, smpl_params=None, num_scenes=1, device=None):
+    def prepare_deformer(self, smpl_params=None, num_scenes=1, device=None, avoid_penetration=False):
         if smpl_params is None:
             smpl_params = torch.zeros((num_scenes, 189)).to(device)
             scale, _, global_orient, pose, betas, left_hand_pose, right_hand_pose, jaw_pose, leye_pose, reye_pose, expression = torch.split(smpl_params, [1, 3, 3, 63, 10, 45, 45, 3, 3, 3, 10], dim=1)
@@ -186,9 +186,11 @@ class SMPLXDeformer(torch.nn.Module):
         self.tfs_A = smpl_outputs.A
 
         self.shape_offset = torch.einsum('bl,mkl->bmk', [smpl_outputs.betas, self.init_spdir])
-        self.pose_offset = torch.matmul(smpl_outputs.pose_feature, self.init_podir).reshape(self.shape_offset.shape) # batch_size, 
+        self.pose_offset = torch.matmul(smpl_outputs.pose_feature, self.init_podir).reshape(self.shape_offset.shape)
+        if avoid_penetration:
+            self.shape_offset_out = torch.einsum('bl,mkl->bmk', [smpl_outputs.betas+0.1, self.init_spdir])
 
-    def __call__(self, pts_in, mask=None, cano=True, eval_mode=True, render_skinning=False, is_normal=True):
+    def __call__(self, pts_in, mask=None, cano=True, eval_mode=True, render_skinning=False, is_normal=True, avoid_penetration=False, pen_mask=None):
         pts = pts_in.clone()
 
         if cano:
@@ -226,6 +228,10 @@ class SMPLXDeformer(torch.nn.Module):
             # defromer based on fast-SNARF
             shape_offset = torch.cat([self.shape_offset[:, init_faces[..., i]] for i in range(3)], dim=1).mean(1)
             pose_offset = torch.cat([self.pose_offset[:, init_faces[..., i]] for i in range(3)], dim=1).mean(1)
+            if avoid_penetration:
+                shape_offset_out = torch.cat([self.shape_offset_out[:, init_faces[..., i]] for i in range(3)], dim=1).mean(1)
+                # num_body_pts = self.init_lbsw.shape[1]
+                shape_offset[:, pen_mask] = shape_offset_out[:, pen_mask]
             pts_cano_all, w_tf = self.deformer.forward_skinning(pts, shape_offset, pose_offset, cond=None, tfs=self.tfs_A, tfs_inv=self.tfs_inv_t, poseoff_ori=self.pose_offset_cano, lbsw=self.init_lbsw, mask=mask)
         pts_cano_all = pts_cano_all.reshape(b, n, -1, 3)
 

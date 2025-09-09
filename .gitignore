@@ -30,3 +30,5 @@ fuse.egg-info/
 *.whl
 *.tar.bz2
 *.tar.gz
+save_video.py
+tran_video/

@@ -64,6 +64,10 @@ def parse_args():
         action='store_true',
         help='whether to set deterministic options for CUDNN backend.')
     parser.add_argument(
+        '--avoid_ptr',
+        action='store_true',
+        help='whether to avoid penetration')
+    parser.add_argument(
         '--data',
         type=str,
         nargs='+')
@@ -209,6 +213,7 @@ def main():
             viz_dir=eval_cfg.get('viz_dir', 'viz_uncond') + '_viz',
             # viz_step=eval_cfg.get('viz_step', 1),
             viz_step=1,
+            avoid_penetration=args.avoid_ptr,
             sample_kwargs=eval_cfg.get('sample_kwargs', dict()))
 
         # if rank == 0:
