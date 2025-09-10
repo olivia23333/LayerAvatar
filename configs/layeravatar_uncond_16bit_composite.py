@@ -120,8 +120,8 @@ optimizer = dict(
 dataset_type = 'PartDataset'
 data = dict(
     # due to cuda memory limit, you can set samples_per_gpu=1, workers_per_gpu=1 during testing
-    samples_per_gpu=4,
-    workers_per_gpu=2,
+    samples_per_gpu=1,
+    workers_per_gpu=1,
     train=dict(
         type=dataset_type,
         data_prefix='data/humanscan_composite/human_train',

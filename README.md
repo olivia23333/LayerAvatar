@@ -148,7 +148,10 @@ python test.py /PATH/TO/CONFIG /PATH/TO/CHECKPOINT --gpu-ids 0 1 --mode 'viz' --
 python test.py /PATH/TO/CONFIG /PATH/TO/CHECKPOINT --gpu-ids 0 1 --mode 'animate' --pose_path demo/ani/xxx --avoid_ptr --seed xxx
 
 # For attribute transfer(upper cloth, pants, hair and shoes), use composte pre-train model
-python test.py /PATH/TO/CONFIG /PATH/TO/CHECKPOINT --gpu-ids 0 1 --mode 'transfer' --avoid_ptr
+python test.py /PATH/TO/CONFIG /PATH/TO/CHECKPOINT --gpu-ids 0 --mode 'transfer' --avoid_ptr
+
+# For reconstruction from a single image
+python test.py configs/layeravatar_uncond_16bit_composite_recon.py /PATH/TO/CHECKPOINT --gpu-ids 0 --mode 'test'
 
 # For evaluation, to run this you need to finish the data preparation process below
 python test.py /PATH/TO/CONFIG /PATH/TO/CHECKPOINT --gpu-ids 0 1 --mode 'eval'

@@ -707,14 +707,23 @@ class BaseNeRF(nn.Module):
                     torch.stack(code_, dim=0) if isinstance(code_, list)
                     else code_)
                 
-                select_imgs = cond_imgs[:, inverse_step_id::4]
-                select_segs = cond_segs[:, inverse_step_id::4]
-                select_cameras = cameras[:, inverse_step_id::4]
-                
-                if cond_norm != None:
-                    select_norm = cond_norm[:, inverse_step_id::4]
+                if num_imgs < 4:
+                    select_imgs = cond_imgs
+                    select_segs = cond_segs
+                    select_cameras = cameras
+                    if cond_norm != None:
+                        select_norm = cond_norm
+                    else:
+                        select_norm = None
                 else:
-                    select_norm = None
+                    select_imgs = cond_imgs[:, inverse_step_id::4]
+                    select_segs = cond_segs[:, inverse_step_id::4]
+                    select_cameras = cameras[:, inverse_step_id::4]
+                    
+                    if cond_norm != None:
+                        select_norm = cond_norm[:, inverse_step_id::4]
+                    else:
+                        select_norm = None
                
                 out_rgbs, loss, loss_dict = self.loss(
                     decoder, code, select_imgs, select_segs, select_cameras, 
@@ -970,8 +979,10 @@ class BaseNeRF(nn.Module):
     def eval_and_viz(self, data, decoder, code, viz_dir=None, cfg=dict(), ortho=True, recon=False, return_norm=False, avoid_penetration=False):
         scene_name = data['scene_name']  # (num_scenes,)
         if recon:
-            test_intrinsics = data['cond_intrinsics'][:, 0::9]  # (num_scenes, num_imgs, 4), in [fx, fy, cx, cy]
-            test_poses = data['cond_poses'][:, 0::9]
+            batch_size = data['cond_poses'].shape[0]
+            cam_poses = self.load_pose('demo/cam_36.json')
+            test_poses = cam_poses[0].unsqueeze(0).repeat(batch_size, 1, 1, 1).to(data['cond_poses'].device)
+            test_intrinsics = cam_poses[1].unsqueeze(0).repeat(batch_size, 1, 1).to(data['cond_intrinsics'].device)
             test_smpl_param = data['cond_smpl_param']
         else:
             # test_intrinsics = data['test_intrinsics'][:, 1::3]  # (num_scenes, num_imgs, 4), in [fx, fy, cx, cy]

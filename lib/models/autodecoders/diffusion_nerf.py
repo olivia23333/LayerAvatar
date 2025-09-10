@@ -349,7 +349,6 @@ class DiffusionNeRF(MultiSceneNeRF):
         decoder.train(True)
 
         extra_scene_step = self.test_cfg.get('extra_scene_step', 0)
-        # extra_scene_step = 0
         n_inverse_steps = self.test_cfg.get('n_inverse_steps', 10)
         
         assert n_inverse_steps > 0
@@ -416,11 +415,11 @@ class DiffusionNeRF(MultiSceneNeRF):
                     code = self.val_optim(data, **kwargs)
                 elif cond_mode == 'guide_optim':
                     code = self.val_guide(data, **kwargs)
-                    if viz_dir_guide is not None and 'test_poses' in data:
-                        code = self.val_optim(
-                            data,
-                            code_=self.code_activation.inverse(code).requires_grad_(True),
-                            **kwargs)
+
+                    code = self.val_optim(
+                        data,
+                        code_=self.code_activation.inverse(code).requires_grad_(True),
+                        **kwargs)
                 else:
                     raise AttributeError
             elif 'test_code' in data:
